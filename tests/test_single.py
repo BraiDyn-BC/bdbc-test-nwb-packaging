@@ -1,7 +1,6 @@
 from pathlib import Path
 from datetime import datetime
 import os
-import json
 import shutil
 
 import numpy as np
@@ -17,15 +16,7 @@ DEBUG = bool(os.getenv('DEBUG'))
 
 TEMP_NWBROOT = Path(os.getenv('TEMP_NWBROOT_DIR'))
 
-TASK_SESSION_INFO = json.loads(os.getenv('TASK_SESSION_INFO'))
 TASK_RAWDATA_PATH = Path(os.getenv('TASK_RAWDATA_PATH'))
-TASK_BODY_VIDEO = Path(os.getenv('TASK_BODY_VIDEO_PATH'))
-TASK_FACE_VIDEO = Path(os.getenv('TASK_FACE_VIDEO_PATH'))
-TASK_EYE_VIDEO = Path(os.getenv('TASK_EYE_VIDEO_PATH'))
-
-TASK_SESSION_INFO['date'] = datetime.strptime(
-    TASK_SESSION_INFO['date'], '%y%m%d'
-)
 
 
 def setup_session_availability() -> sessx.session.Availability:
@@ -41,17 +32,47 @@ def setup_session_availability() -> sessx.session.Availability:
     return sessx.session.Availability(**avail)
 
 
-def load_paths() -> npack.paths.PathSettings:
-    session = sessx.Session(
+def setup_session(session_type='task') -> sessx.session.Session:
+    def _as_date(datestr) -> datetime:
+        return datetime.strptime(datestr, '%y%m%d')
+    TYPE = session_type.upper()
+    metadata = dict()
+    for key, env, typ in (
+        ('batch', 'BATCH', str),
+        ('animal', 'ANIMAL', str),
+        ('date', 'DATE', _as_date),
+        ('type', 'TYPE', str),
+        ('dayindex', 'DAYIDX', int),
+        ('sessionindex', 'SESSIDX', int),
+        ('description', 'DESC', str),
+        ('comments', 'COMMENTS', str),
+    ):
+        metadata[key] = typ(os.getenv(f'{TYPE}_SESSION_{env}'))
+    return sessx.session.Session(
         availability=setup_session_availability(),
-        **TASK_SESSION_INFO
+        **metadata
     )
 
-    videos = npack.paths.VideoDataFiles(
-        body=npack.paths.VideoDataFile(TASK_BODY_VIDEO, 0, 0, 0),  # FIXME: no metadata for the time being  # noqa: E501
-        face=npack.paths.VideoDataFile(TASK_FACE_VIDEO, 0, 0, 0),  # FIXME: no metadata for the time being  # noqa: E501
-        eye=npack.paths.VideoDataFile(TASK_EYE_VIDEO, 0, 0, 0)  # FIXME: no metadata for the time being  # noqa: E501
-    )
+
+def setup_source_videos() -> npack.paths.VideoDataFiles:
+    metadata = dict()
+    videos_dir = os.getenv('TASK_VIDEOS_DIR')
+    if (videos_dir is None) or (len(videos_dir.strip()) == 0):
+        for key in ('body', 'face', 'eye'):
+            metadata[key] = npack.paths.VideoDataFile.empty()
+    else:
+        for key, label in sessx.videos.VideoFiles.LABELS.items():
+            videofile = sessx.videos.find_video_file(
+                videos_dir,
+                videotype=label
+            )
+            metadata[key] = npack.paths.setup_video_file(videofile)
+    return npack.paths.VideoDataFiles(**metadata)
+
+
+def load_paths() -> npack.paths.PathSettings:
+    session = setup_session()
+    videos = setup_source_videos()
     source = npack.paths.SourcePaths(
         rawdata=TASK_RAWDATA_PATH,
         videos=videos,
