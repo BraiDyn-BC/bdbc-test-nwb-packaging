@@ -21,7 +21,6 @@
 # SOFTWARE.
 
 import numpy as np
-import pandas as pd
 
 import bdbc_nwb_packager as npack
 
@@ -78,26 +77,28 @@ def test_trials():
     # trials
     trials = npack.trials.load_trials(
         rawfile=paths.source.rawdata,
+        trialspec=paths.session.trialspec,
     )
-    assert isinstance(trials, pd.DataFrame)
-    assert trials.shape[1] < 10
-    assert trials.shape[0] > 50
+    assert isinstance(trials, npack.trials.Trials)
+    assert trials.table.shape[1] < 10
+    assert trials.table.shape[0] > 50
 
     # downsampled trials
     trials_ds = npack.trials.load_downsampled_trials(
         rawfile=paths.source.rawdata,
+        trialspec=paths.session.trialspec,
     )
-    assert isinstance(trials_ds, pd.DataFrame)
+    assert isinstance(trials_ds, npack.trials.Trials)
 
     # compare raw vs downsampled
-    assert trials_ds.shape == trials.shape
+    assert trials_ds.table.shape == trials.table.shape
     for column in (
         'reaction_time',
         'trial_outcome',
         'pull_duration_for_success'
     ):
         assert np.all(nancompare(
-            trials[column].values, trials_ds[column].values
+            trials.table[column].values, trials_ds.table[column].values
         ))
     for column in (
         'pull_onset',
@@ -105,7 +106,7 @@ def test_trials():
         'trial_end',
     ):
         assert np.all(nancompare(
-            trials[column].values, trials_ds[column].values, tol=0.05,
+            trials.table[column].values, trials_ds.table[column].values, tol=0.05,
         ))
 
 

@@ -23,6 +23,7 @@
 from pathlib import Path
 from datetime import datetime
 import os
+import json
 
 from dotenv import load_dotenv
 
@@ -66,8 +67,11 @@ def setup_session(session_type='task') -> sessx.session.Session:
         ('sessionindex', 'SESSIDX', int),
         ('description', 'DESC', str),
         ('comments', 'COMMENTS', str),
+        ('trialspec', 'TRIALSPEC', str)
     ):
         metadata[key] = typ(os.getenv(f'{TYPE}_SESSION_{env}'))
+    with open(metadata['trialspec'], 'r') as src:
+        metadata['trialspec'] = json.load(src)
     return sessx.session.Session(
         availability=setup_session_availability(),
         **metadata
