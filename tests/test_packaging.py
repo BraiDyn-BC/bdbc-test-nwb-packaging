@@ -36,6 +36,7 @@ def test_file_packaging():
     """tests writing the DAQ-log entries and trials to the NWBFile object"""
     if TEMP_NWBROOT.exists():
         shutil.rmtree(TEMP_NWBROOT)
+    npack.logging.get_logger(file_output=True, prefix='test-nwb-packaging_')
     paths = _load_paths()
     nwbfile = npack.packaging.process(
         paths.session,
